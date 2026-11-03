@@ -16,20 +16,11 @@
 Mỗi lần sửa file trên GitHub, Render tự deploy lại sau ~1–2 phút.
 
 ## 3. Thêm màn chơi mới (không cần sửa code)
-1. Chuẩn bị 2 ảnh CÙNG kích thước (png/jpg/webp/svg), bỏ vào `public/images/`, ví dụ `cho-meo-a.jpg`, `cho-meo-b.jpg`.
-2. Mở `/picker.html` (trang công cụ), chọn ảnh, click vào từng chỗ khác biệt → copy JSON và ghi lại width/height ảnh.
-3. Mở `levels.json`, thêm một khối vào cuối danh sách (nhớ dấu phẩy giữa các màn):
-```
-  {
-    "title": "Chó và mèo",
-    "imageA": "images/cho-meo-a.jpg",
-    "imageB": "images/cho-meo-b.jpg",
-    "width": 1200, "height": 800,
-    "diffs": [ {"x":300,"y":210,"r":30}, {"x":820,"y":500,"r":35} ]
-  }
-```
-4. Khởi động lại (`npm start`) hoặc commit lên GitHub. Nếu sai gì (thiếu file ảnh, thiếu dấu phẩy, toạ độ không phải số) server từ chối chạy và báo ĐÚNG màn nào, lỗi gì — không bao giờ chạy với dữ liệu hỏng.
-Lưu ý: x, y, r tính theo pixel của ẢNH GỐC. Nên dùng ảnh rộng <= 1600px cho nhẹ.
+1. Chuẩn bị 2 ảnh CÙNG kích thước (nên khoảng 1600x900, jpg dưới 1MB mỗi ảnh). Đặt tên không dấu, không dấu cách, ví dụ cho-meo-a.jpg / cho-meo-b.jpg.
+2. Mở https://LINK-CỦA-BẠN/picker.html → chọn ảnh A và ảnh B → gõ tên màn → click vào giữa từng chỗ khác biệt → bấm Copy.
+3. Trên GitHub: vào thư mục public/images → Add file → Upload files → kéo 2 ảnh vào → Commit. (Tên file phải đúng như công cụ báo.)
+4. Trên GitHub: mở levels.json → bút chì (Edit) → dán khối vừa copy vào cuối danh sách (thêm dấu phẩy sau màn trước) → Commit changes.
+5. Đợi Render deploy lại (1–2 phút). Nếu sai gì, xem tab Logs của Render: server báo rõ màn nào, lỗi gì.
 
 ## 4. Quản trị
 Đặt biến môi trường `ADMIN_KEY` (Render: Environment; máy local: `ADMIN_KEY=matkhau npm start`).

@@ -1,28 +1,48 @@
 <!DOCTYPE html>
 <html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Công cụ lấy toạ độ điểm khác biệt</title>
-<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:16px}
-#wrap{position:relative;display:inline-block;max-width:100%}img{max-width:100%;display:block;cursor:crosshair}
-.dot{position:absolute;border:3px solid #e11d48;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
-textarea{width:100%;height:160px;font-family:monospace}button,input{padding:8px;margin:4px 4px 4px 0}</style></head><body>
-<h2>Lấy toạ độ điểm khác biệt</h2>
-<ol><li>Chọn <b>ảnh có điểm khác biệt</b> (ảnh B, hoặc ảnh nào cũng được vì hai ảnh cùng kích thước).</li>
-<li>Click vào <b>từng</b> chỗ khác biệt. Mỗi click tạo một vòng tròn.</li>
-<li>Copy đoạn JSON bên dưới, dán vào mục <code>"diffs"</code> trong <code>levels.json</code>.</li></ol>
-<input type="file" id="f" accept="image/*"> Bán kính (px ảnh gốc): <input type="number" id="r" value="25" style="width:80px">
-<button id="undo">Xoá điểm cuối</button><button id="clr">Xoá hết</button>
-<p id="info"></p><div id="wrap"><img id="img"><span id="dots"></span></div>
-<h3>Kết quả</h3><textarea id="out" readonly></textarea>
+<title>Công cụ tạo màn chơi</title>
+<style>body{font-family:system-ui,sans-serif;max-width:1100px;margin:0 auto;padding:16px;line-height:1.5}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:8px 0}label{font-weight:600}
+input[type=text],input[type=number]{padding:8px;border:1px solid #bbb;border-radius:8px}
+button{padding:8px 14px;border-radius:8px;border:0;background:#6d28d9;color:#fff;font-weight:600;cursor:pointer}
+#wrap{position:relative;display:inline-block;max-width:100%;border:2px solid #6d28d9}img{max-width:100%;display:block;cursor:crosshair;user-select:none}
+.dot{position:absolute;border:3px solid #e11d48;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none;color:#e11d48;font-weight:700;display:flex;align-items:center;justify-content:center}
+textarea{width:100%;height:230px;font-family:monospace}.warn{color:#b91c1c;font-weight:600}.ok{color:#15803d;font-weight:600}</style></head><body>
+<h2>🛠 Công cụ tạo màn chơi</h2>
+<p>Các file ảnh chỉ được đọc trong trình duyệt của bạn, <b>không bị gửi đi đâu</b>. Làm lần lượt 1 → 4.</p>
+<div class="row"><label>1. Ảnh A (gốc):</label><input type="file" id="fa" accept="image/*">
+<label>Ảnh B (có điểm khác):</label><input type="file" id="fb" accept="image/*"></div>
+<div class="row"><label>2. Tên màn:</label><input type="text" id="title" value="Màn mới" size="30">
+<label>Bán kính vòng (px ảnh gốc):</label><input type="number" id="r" value="30" style="width:90px">
+<label><input type="checkbox" id="showb"> Xem ảnh B (để dò chỗ khác)</label></div>
+<p id="info"></p>
+<p><b>3.</b> Click lên ảnh vào <b>giữa từng chỗ khác biệt</b>. Click nhầm thì bấm "Xoá điểm cuối".
+<button id="undo">Xoá điểm cuối</button> <button id="clr" style="background:#6b7280">Xoá hết</button> <span id="count"></span></p>
+<div id="wrap"><img id="img"><span id="dots"></span></div>
+<h3>4. Copy khối này dán vào <code>levels.json</code> (nhớ dấu phẩy với màn trước đó)</h3>
+<textarea id="out" readonly></textarea><div class="row"><button id="copy">📋 Copy</button><span id="cm"></span></div>
+<p id="names"></p>
 <script>
-var pts=[],img=document.getElementById('img'),$=function(i){return document.getElementById(i)};
-$('f').onchange=function(e){var f=e.target.files[0];if(!f)return;img.src=URL.createObjectURL(f);pts=[]};
-img.onload=function(){$('info').textContent='Kích thước ảnh gốc: width='+img.naturalWidth+', height='+img.naturalHeight+' (điền đúng 2 số này vào levels.json)';draw()};
-img.onclick=function(e){var b=img.getBoundingClientRect(),k=img.naturalWidth/b.width;
- pts.push({x:Math.round((e.clientX-b.left)*k),y:Math.round((e.clientY-b.top)*k),r:+$('r').value||25});draw()};
+var $=function(i){return document.getElementById(i)},img=$('img'),pts=[],srcA='',srcB='',nameA='',nameB='',nat={w:0,h:0},natB=null;
+function slug(n){return n.toLowerCase().replace(/[^a-z0-9.]+/g,'-').replace(/^-+/,'')}
+$('fa').onchange=function(e){var f=e.target.files[0];if(!f)return;nameA=f.name;srcA=URL.createObjectURL(f);pts=[];img.src=srcA;$('showb').checked=false;};
+$('fb').onchange=function(e){var f=e.target.files[0];if(!f)return;nameB=f.name;srcB=URL.createObjectURL(f);
+ var t=new Image();t.onload=function(){natB={w:t.naturalWidth,h:t.naturalHeight};info();build()};t.src=srcB};
+$('showb').onchange=function(){if($('showb').checked&&srcB)img.src=srcB;else if(srcA)img.src=srcA};
+img.onload=function(){if(img.src===srcA){nat={w:img.naturalWidth,h:img.naturalHeight};if(!pts.length)$('r').value=Math.max(15,Math.round(nat.w*0.02))}info();draw()};
+function info(){var s='Kích thước ảnh A: '+nat.w+' × '+nat.h;if(natB){s+=natB.w===nat.w&&natB.h===nat.h?' · ✅ Ảnh B cùng kích thước':' · <span class="warn">⚠ Ảnh B là '+natB.w+'×'+natB.h+' — PHẢI cùng kích thước với ảnh A!</span>'}$('info').innerHTML=s}
+img.onclick=function(e){if(!nat.w)return;var b=img.getBoundingClientRect(),k=nat.w/b.width;
+ pts.push({x:Math.round((e.clientX-b.left)*k),y:Math.round((e.clientY-b.top)*k),r:+$('r').value||30});draw()};
 $('undo').onclick=function(){pts.pop();draw()};$('clr').onclick=function(){pts=[];draw()};
-$('r').oninput=function(){pts.forEach(function(p){p.r=+$('r').value||25});draw()};
-function draw(){var b=img.getBoundingClientRect(),k=b.width/(img.naturalWidth||1);
- $('dots').innerHTML=pts.map(function(p){var d=p.r*2*k;return '<span class="dot" style="left:'+p.x*k+'px;top:'+p.y*k+'px;width:'+d+'px;height:'+d+'px"></span>'}).join('');
- $('out').value=JSON.stringify(pts).replace(/\},\{/g,'},\n{').replace(/"/g,'"')}
-window.onresize=draw;
+$('r').oninput=function(){pts.forEach(function(p){p.r=+$('r').value||30});draw()};$('title').oninput=build;
+function draw(){var b=img.getBoundingClientRect(),k=b.width/(nat.w||1);
+ $('dots').innerHTML=pts.map(function(p,i){var d=p.r*2*k;return '<span class="dot" style="left:'+p.x*k+'px;top:'+p.y*k+'px;width:'+d+'px;height:'+d+'px">'+(i+1)+'</span>'}).join('');
+ $('count').textContent='Đã đánh dấu: '+pts.length+' điểm';build()}
+function build(){
+ var a=slug(nameA||'anh-a.jpg'),b=slug(nameB||'anh-b.jpg');
+ var o={title:$('title').value||'Màn mới',imageA:'images/'+a,imageB:'images/'+b,width:nat.w,height:nat.h,diffs:pts};
+ $('out').value=JSON.stringify(o,null,2);
+ $('names').innerHTML='Khi upload lên GitHub, đặt tên file đúng là: <b>public/images/'+a+'</b> và <b>public/images/'+b+'</b>'}
+$('copy').onclick=function(){$('out').select();document.execCommand('copy');$('cm').innerHTML='<span class="ok">Đã copy!</span>'};
+window.onresize=draw;build();
 </script></body></html>
