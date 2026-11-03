@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tìm điểm khác biệt online</title>
+<style>
+:root{--bg:#f5f3ff;--card:#fff;--tx:#1e1b4b;--mut:#6b6a8a;--ac:#6d28d9;--ok:#16a34a;--bad:#dc2626;--bd:#ddd9f5}
+@media(prefers-color-scheme:dark){:root{--bg:#14122b;--card:#201d42;--tx:#efeeff;--mut:#a5a3c8;--ac:#a78bfa;--bd:#38346b}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:16px}h1{font-size:1.3rem;margin:0 0 4px}
+.sub,.note{color:var(--mut);font-size:.9rem}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px}
+#join{max-width:420px;margin:12vh auto 0;text-align:center}
+input,select{width:100%;padding:12px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:1rem;margin:8px 0}
+button{background:var(--ac);color:#fff;border:0;border-radius:10px;padding:12px 20px;font-size:1rem;cursor:pointer;font-weight:600;width:100%;margin-top:6px}
+button.alt{background:var(--mut)}
+#game{display:none}.top{display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between;margin-bottom:12px}
+.main{display:grid;grid-template-columns:1fr 250px;gap:14px}@media(max-width:760px){.main{grid-template-columns:1fr}}
+.imgs{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:520px){.imgs{grid-template-columns:1fr}}
+svg{width:100%;height:auto;border-radius:10px;border:2px solid var(--bd);cursor:crosshair;display:block;background:#888}
+ol{list-style:none;margin:8px 0;padding:0}li{display:flex;justify-content:space-between;padding:8px 10px;border-radius:8px;margin-bottom:4px;background:var(--bg)}
+li.me{outline:2px solid var(--ac)}#msg{min-height:1.4em;margin-top:10px;font-weight:600}
+.win{color:var(--ok)}.lose{color:var(--bad)}#adm{display:none;border-top:1px solid var(--bd);margin-top:12px;padding-top:8px}
+@keyframes sh{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}.shake{animation:sh .25s}
+</style></head><body><div class="wrap">
+<div id="join" class="card"><h1>🔍 Tìm điểm khác biệt</h1>
+<p class="sub">Nhập tên để vào chơi chung một màn. Không cần đăng nhập.</p>
+<input id="name" maxlength="20" placeholder="Tên của bạn…" autocomplete="off"><button id="go">Vào chơi</button></div>
+<div id="game"><div class="top"><div><h1 id="title">🔍</h1>
+<span class="sub">Click vào chỗ khác nhau. Ai bấm đúng trước được điểm.</span></div>
+<b>Bạn: <span id="me"></span> · Còn lại: <span id="left"></span></b></div>
+<div class="main"><div class="card"><div class="imgs"><svg id="A"></svg><svg id="B"></svg></div><div id="msg"></div>
+<button id="next" style="display:none">Màn tiếp theo ▶</button></div>
+<div class="card"><b>Bảng điểm</b><ol id="board"></ol><p class="note" id="status"></p>
+<div id="adm"><b>Quản trị</b><select id="lvsel"></select><button id="setlv">Chuyển tới màn này</button>
+<button id="rst" class="alt">Chơi lại màn hiện tại</button><button id="zero" class="alt">Xoá hết điểm</button></div></div></div></div></div>
+<script>
+var $=function(i){return document.getElementById(i)},NS='http://www.w3.org/2000/svg';
+var ws,myPid,myName='',S=null,curLevel=-1,isAdmin=false;
+var q=new URLSearchParams(location.search),room=q.get('r')||'main',adminKey=q.get('admin')||'';
+function flash(t,c){$('msg').className=c||'';$('msg').textContent=t}
+function send(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
+function connect(){
+ ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/?r='+encodeURIComponent(room));
+ ws.onopen=function(){send({t:'join',name:myName,key:adminKey})};
+ ws.onmessage=function(e){var m=JSON.parse(e.data);
+  if(m.t==='hello'){myPid=m.pid;isAdmin=m.admin;$('adm').style.display=m.admin?'block':'none'}
+  else if(m.t==='state'){S=m;render()}
+  else if(m.t==='hit')flash('✅ Chính xác! +1 điểm','win');
+  else if(m.t==='dup')flash('Chỗ này có người tìm ra rồi!');
+  else if(m.t==='miss')flash('❌ Chưa đúng, thử lại nhé','lose')};
+ ws.onclose=function(){$('status').textContent='Mất kết nối, đang thử lại…';setTimeout(connect,1500)};
+}
+function setLevel(L){
+ ['A','B'].forEach(function(s,i){var svg=$(s);svg.setAttribute('viewBox','0 0 '+L.width+' '+L.height);
+  svg.innerHTML='<image href="'+(i?L.imageB:L.imageA)+'" width="'+L.width+'" height="'+L.height+'"/>'});
+ $('title').textContent='🔍 Màn '+(L.index+1)+'/'+L.count+': '+L.title;
+ var sel=$('lvsel');if(sel.options.length!==L.count){sel.innerHTML='';for(var i=0;i<L.count;i++){var o=document.createElement('option');o.value=i;o.textContent='Màn '+(i+1);sel.appendChild(o)}}
+ flash('');curLevel=L.index;
+}
+function render(){
+ var L=S.level;if(curLevel!==L.index||!$('A').firstChild)setLevel(L);
+ var n=Object.keys(S.found).length;$('left').textContent=L.total-n;
+ ['A','B'].forEach(function(s){var svg=$(s);svg.querySelectorAll('.mk').forEach(function(e){e.remove()});
+  Object.values(S.found).forEach(function(f){var c=document.createElementNS(NS,'circle');
+   c.setAttribute('class','mk');c.setAttribute('cx',f.x);c.setAttribute('cy',f.y);c.setAttribute('r',f.r);
+   c.setAttribute('fill','none');c.setAttribute('stroke',f.pid===myPid?'#16a34a':'#7c3aed');c.setAttribute('stroke-width',Math.max(3,L.width/100));
+   c.style.pointerEvents='none';svg.appendChild(c)})});
+ var ol=$('board');ol.innerHTML='';
+ S.players.forEach(function(p,i){var li=document.createElement('li');if(p.pid===myPid)li.className='me';
+  var a=document.createElement('span');a.textContent='#'+(i+1)+' '+p.name+(p.pid===myPid?' (bạn)':'');
+  var b=document.createElement('b');b.textContent=p.score;li.appendChild(a);li.appendChild(b);ol.appendChild(li)});
+ $('status').textContent=S.players.length+' người đang chơi.';
+ var fin=n===L.total;$('next').style.display=fin?'block':'none';
+ if(fin)flash('🎉 Xong màn! Người dẫn đầu: '+S.players[0].name+' ('+S.players[0].score+' điểm)','win');
+}
+function click(e){var svg=e.currentTarget,r=svg.getBoundingClientRect();if(!S)return;
+ send({t:'click',x:(e.clientX-r.left)/r.width*S.level.width,y:(e.clientY-r.top)/r.height*S.level.height});
+ svg.classList.remove('shake');void svg.offsetWidth;svg.classList.add('shake')}
+$('A').onclick=click;$('B').onclick=click;
+$('next').onclick=function(){send({t:'next'})};
+$('setlv').onclick=function(){send({t:'admin',op:'level',index:+$('lvsel').value})};
+$('rst').onclick=function(){send({t:'admin',op:'restart'})};
+$('zero').onclick=function(){send({t:'admin',op:'scores'})};
+function start(){var n=$('name').value.trim();if(!n){$('name').focus();return}
+ myName=n;$('join').style.display='none';$('game').style.display='block';$('me').textContent=n;connect()}
+$('go').onclick=start;$('name').onkeydown=function(e){if(e.key==='Enter')start()};
+</script></body></html>

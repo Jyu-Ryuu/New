@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Công cụ lấy toạ độ điểm khác biệt</title>
+<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:16px}
+#wrap{position:relative;display:inline-block;max-width:100%}img{max-width:100%;display:block;cursor:crosshair}
+.dot{position:absolute;border:3px solid #e11d48;border-radius:50%;transform:translate(-50%,-50%);pointer-events:none}
+textarea{width:100%;height:160px;font-family:monospace}button,input{padding:8px;margin:4px 4px 4px 0}</style></head><body>
+<h2>Lấy toạ độ điểm khác biệt</h2>
+<ol><li>Chọn <b>ảnh có điểm khác biệt</b> (ảnh B, hoặc ảnh nào cũng được vì hai ảnh cùng kích thước).</li>
+<li>Click vào <b>từng</b> chỗ khác biệt. Mỗi click tạo một vòng tròn.</li>
+<li>Copy đoạn JSON bên dưới, dán vào mục <code>"diffs"</code> trong <code>levels.json</code>.</li></ol>
+<input type="file" id="f" accept="image/*"> Bán kính (px ảnh gốc): <input type="number" id="r" value="25" style="width:80px">
+<button id="undo">Xoá điểm cuối</button><button id="clr">Xoá hết</button>
+<p id="info"></p><div id="wrap"><img id="img"><span id="dots"></span></div>
+<h3>Kết quả</h3><textarea id="out" readonly></textarea>
+<script>
+var pts=[],img=document.getElementById('img'),$=function(i){return document.getElementById(i)};
+$('f').onchange=function(e){var f=e.target.files[0];if(!f)return;img.src=URL.createObjectURL(f);pts=[]};
+img.onload=function(){$('info').textContent='Kích thước ảnh gốc: width='+img.naturalWidth+', height='+img.naturalHeight+' (điền đúng 2 số này vào levels.json)';draw()};
+img.onclick=function(e){var b=img.getBoundingClientRect(),k=img.naturalWidth/b.width;
+ pts.push({x:Math.round((e.clientX-b.left)*k),y:Math.round((e.clientY-b.top)*k),r:+$('r').value||25});draw()};
+$('undo').onclick=function(){pts.pop();draw()};$('clr').onclick=function(){pts=[];draw()};
+$('r').oninput=function(){pts.forEach(function(p){p.r=+$('r').value||25});draw()};
+function draw(){var b=img.getBoundingClientRect(),k=b.width/(img.naturalWidth||1);
+ $('dots').innerHTML=pts.map(function(p){var d=p.r*2*k;return '<span class="dot" style="left:'+p.x*k+'px;top:'+p.y*k+'px;width:'+d+'px;height:'+d+'px"></span>'}).join('');
+ $('out').value=JSON.stringify(pts).replace(/\},\{/g,'},\n{').replace(/"/g,'"')}
+window.onresize=draw;
+</script></body></html>
